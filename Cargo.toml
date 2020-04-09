@@ -1,6 +1,6 @@
 [package]
 name = "ethereum-forkid"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Artem Vorotnikov <artem@vorotnikov.me>"]
 repository = "https://github.com/vorot93/ethereum-forkid"
 documentation = "https://docs.rs/ethereum-forkid"
