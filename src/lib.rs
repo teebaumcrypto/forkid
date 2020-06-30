@@ -2,6 +2,7 @@
 
 #![deny(missing_docs)]
 #![warn(clippy::all, clippy::pedantic, clippy::nursery)]
+#![allow(clippy::too_many_lines)]
 
 use crc::crc32;
 use ethereum_types::H256;
