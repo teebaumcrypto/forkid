@@ -1,3 +1,6 @@
+# 0.3.0 (2020-10-14)
+* Remove MallocSizeOf impls
+
 # 0.2.2 (2020-10-14)
 * Bump hex-literal to 0.3
 * Replace ethereum-types dependency with primitive-types
