@@ -165,6 +165,7 @@ impl ForkFilter {
     }
 
     fn set_head_priv(&mut self, head: BlockNumber) -> bool {
+        #[allow(clippy::option_if_let_else)]
         let recompute_cache = {
             if head < self.cache.epoch_start {
                 true
