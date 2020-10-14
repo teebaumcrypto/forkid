@@ -5,9 +5,9 @@
 #![allow(clippy::too_many_lines)]
 
 use crc::crc32;
-use ethereum_types::H256;
 use maplit::btreemap;
 use parity_util_mem::MallocSizeOf;
+use primitive_types::H256;
 use rlp::{DecoderError, Rlp, RlpStream};
 use rlp_derive::{RlpDecodable, RlpEncodable};
 use std::collections::{BTreeMap, BTreeSet};
