@@ -6,7 +6,6 @@
 
 use crc::crc32;
 use maplit::btreemap;
-use parity_util_mem::MallocSizeOf;
 use primitive_types::H256;
 use rlp::{DecoderError, Rlp, RlpStream};
 use rlp_derive::{RlpDecodable, RlpEncodable};
@@ -16,7 +15,7 @@ use std::collections::{BTreeMap, BTreeSet};
 pub type BlockNumber = u64;
 
 /// `CRC32` hash of all previous forks starting from genesis block.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, MallocSizeOf)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct ForkHash(pub u32);
 
 impl rlp::Encodable for ForkHash {
@@ -63,7 +62,7 @@ impl std::ops::Add<BlockNumber> for ForkHash {
 
 /// A fork identifier as defined by EIP-2124.
 /// Serves as the chain compatibility identifier.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, MallocSizeOf, RlpEncodable, RlpDecodable)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, RlpEncodable, RlpDecodable)]
 pub struct ForkId {
     /// CRC32 checksum of the all fork blocks from genesis.
     pub hash: ForkHash,
@@ -81,7 +80,7 @@ pub enum RejectReason {
 }
 
 /// Filter that describes the state of blockchain and can be used to check incoming `ForkId`s for compatibility.
-#[derive(Clone, Debug, PartialEq, MallocSizeOf)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ForkFilter {
     forks: BTreeMap<BlockNumber, ForkHash>,
 
@@ -90,7 +89,7 @@ pub struct ForkFilter {
     cache: Cache,
 }
 
-#[derive(Clone, Debug, PartialEq, MallocSizeOf)]
+#[derive(Clone, Debug, PartialEq)]
 struct Cache {
     // An epoch is a period between forks.
     // When we progress from one fork to the next one we move to the next epoch.
