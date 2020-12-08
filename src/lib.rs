@@ -449,21 +449,21 @@ mod tests {
     #[test]
     fn forkid_serialization() {
         assert_eq!(
-            rlp::encode(&ForkId {
+            &*rlp::encode(&ForkId {
                 hash: ForkHash(0),
                 next: 0
             }),
             hex!("c6840000000080")
         );
         assert_eq!(
-            rlp::encode(&ForkId {
+            &*rlp::encode(&ForkId {
                 hash: ForkHash(0xdead_beef),
                 next: 0xBADD_CAFE
             }),
             hex!("ca84deadbeef84baddcafe")
         );
         assert_eq!(
-            rlp::encode(&ForkId {
+            &*rlp::encode(&ForkId {
                 hash: ForkHash(u32::max_value()),
                 next: u64::max_value()
             }),
