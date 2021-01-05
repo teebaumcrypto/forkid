@@ -9,7 +9,10 @@ use maplit::btreemap;
 use primitive_types::H256;
 use rlp::{DecoderError, Rlp, RlpStream};
 use rlp_derive::{RlpDecodable, RlpEncodable};
-use std::collections::{BTreeMap, BTreeSet};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    ops::{Add, AddAssign},
+};
 use thiserror::Error;
 
 /// Block number.
@@ -46,14 +49,14 @@ impl From<H256> for ForkHash {
     }
 }
 
-impl std::ops::AddAssign<BlockNumber> for ForkHash {
+impl AddAssign<BlockNumber> for ForkHash {
     fn add_assign(&mut self, block: BlockNumber) {
         let blob = block.to_be_bytes();
         self.0 = crc32::update(self.0, &crc32::IEEE_TABLE, &blob)
     }
 }
 
-impl std::ops::Add<BlockNumber> for ForkHash {
+impl Add<BlockNumber> for ForkHash {
     type Output = Self;
     fn add(mut self, block: BlockNumber) -> Self {
         self += block;
