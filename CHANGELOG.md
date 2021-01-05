@@ -1,3 +1,7 @@
+# 0.4.0 (2020-01-05)
+* Port to primitive-types 0.8, rlp 0.5
+* Rename RejectReason to ValidationError, ForkFilter::is_compatible to ForkFilter::validate
+
 # 0.3.0 (2020-10-14)
 * Remove MallocSizeOf impls
 
