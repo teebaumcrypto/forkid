@@ -10,6 +10,7 @@ use primitive_types::H256;
 use rlp::{DecoderError, Rlp, RlpStream};
 use rlp_derive::{RlpDecodable, RlpEncodable};
 use std::collections::{BTreeMap, BTreeSet};
+use thiserror::Error;
 
 /// Block number.
 pub type BlockNumber = u64;
@@ -71,11 +72,13 @@ pub struct ForkId {
 }
 
 /// Reason for rejecting provided `ForkId`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum RejectReason {
+#[derive(Clone, Copy, Debug, Error, PartialEq, Eq, Hash)]
+pub enum ValidationError {
     /// Remote node is outdated and needs a software update.
+    #[error("remote node is outdated and needs a software update")]
     RemoteStale,
     /// Local node is on an incompatible chain or needs a software update.
+    #[error("local node is on an incompatible chain or needs a software update")]
     LocalIncompatibleOrStale,
 }
 
@@ -197,8 +200,8 @@ impl ForkFilter {
     /// Check whether the provided `ForkId` is compatible based on the validation rules in `EIP-2124`.
     ///
     /// # Errors
-    /// Returns a `RejectReason` if the `ForkId` is not compatible.
-    pub fn is_compatible(&self, fork_id: ForkId) -> Result<(), RejectReason> {
+    /// Returns a `ValidationError` if the `ForkId` is not compatible.
+    pub fn validate(&self, fork_id: ForkId) -> Result<(), ValidationError> {
         // 1) If local and remote FORK_HASH matches...
         if self.current().hash == fork_id.hash {
             if fork_id.next == 0 {
@@ -210,7 +213,7 @@ impl ForkFilter {
             if self.head >= fork_id.next {
                 // 1a) A remotely announced but remotely not passed block is already passed locally, disconnect,
                 // since the chains are incompatible.
-                return Err(RejectReason::LocalIncompatibleOrStale);
+                return Err(ValidationError::LocalIncompatibleOrStale);
             } else {
                 // 1b) Remotely announced fork not yet passed locally, connect.
                 return Ok(());
@@ -226,7 +229,7 @@ impl ForkFilter {
                     if *actual_fork_block == fork_id.next {
                         return Ok(());
                     } else {
-                        return Err(RejectReason::RemoteStale);
+                        return Err(ValidationError::RemoteStale);
                     }
                 }
 
@@ -242,7 +245,7 @@ impl ForkFilter {
         }
 
         // 4) Reject in all other cases.
-        Err(RejectReason::LocalIncompatibleOrStale)
+        Err(ValidationError::LocalIncompatibleOrStale)
     }
 }
 
@@ -282,7 +285,7 @@ mod tests {
         // Local is mainnet Petersburg, remote announces the same. No future fork is announced.
         filter.set_head(7_987_396);
         assert_eq!(
-            filter.is_compatible(ForkId {
+            filter.validate(ForkId {
                 hash: ForkHash(0x668d_b0af),
                 next: 0
             }),
@@ -293,7 +296,7 @@ mod tests {
         // at block 0xffffffff, but that is uncertain.
         filter.set_head(7_987_396);
         assert_eq!(
-            filter.is_compatible(ForkId {
+            filter.validate(ForkId {
                 hash: ForkHash(0x668d_b0af),
                 next: BlockNumber::max_value()
             }),
@@ -305,7 +308,7 @@ mod tests {
         // In this case we don't know if Petersburg passed yet or not.
         filter.set_head(7_279_999);
         assert_eq!(
-            filter.is_compatible(ForkId {
+            filter.validate(ForkId {
                 hash: ForkHash(0xa00b_c324),
                 next: 0
             }),
@@ -317,7 +320,7 @@ mod tests {
         // don't know if Petersburg passed yet (will pass) or not.
         filter.set_head(7_279_999);
         assert_eq!(
-            filter.is_compatible(ForkId {
+            filter.validate(ForkId {
                 hash: ForkHash(0xa00b_c324),
                 next: 7_280_000
             }),
@@ -329,7 +332,7 @@ mod tests {
         // neither forks passed at neither nodes, they may mismatch, but we still connect for now.
         filter.set_head(7_279_999);
         assert_eq!(
-            filter.is_compatible(ForkId {
+            filter.validate(ForkId {
                 hash: ForkHash(0xa00b_c324),
                 next: BlockNumber::max_value()
             }),
@@ -339,7 +342,7 @@ mod tests {
         // Local is mainnet Petersburg, remote announces Byzantium + knowledge about Petersburg. Remote is simply out of sync, accept.
         filter.set_head(7_987_396);
         assert_eq!(
-            filter.is_compatible(ForkId {
+            filter.validate(ForkId {
                 hash: ForkHash(0xa00b_c324),
                 next: 7_280_000
             }),
@@ -350,7 +353,7 @@ mod tests {
         // is definitely out of sync. It may or may not need the Petersburg update, we don't know yet.
         filter.set_head(7_987_396);
         assert_eq!(
-            filter.is_compatible(ForkId {
+            filter.validate(ForkId {
                 hash: ForkHash(0x3edd_5b10),
                 next: 4_370_000
             }),
@@ -360,7 +363,7 @@ mod tests {
         // Local is mainnet Byzantium, remote announces Petersburg. Local is out of sync, accept.
         filter.set_head(7_279_999);
         assert_eq!(
-            filter.is_compatible(ForkId {
+            filter.validate(ForkId {
                 hash: ForkHash(0x668d_b0af),
                 next: 0
             }),
@@ -371,7 +374,7 @@ mod tests {
         // out of sync. Local also knows about a future fork, but that is uncertain yet.
         filter.set_head(4_369_999);
         assert_eq!(
-            filter.is_compatible(ForkId {
+            filter.validate(ForkId {
                 hash: ForkHash(0xa00b_c324),
                 next: 0
             }),
@@ -382,43 +385,43 @@ mod tests {
         // Remote needs software update.
         filter.set_head(7_987_396);
         assert_eq!(
-            filter.is_compatible(ForkId {
+            filter.validate(ForkId {
                 hash: ForkHash(0xa00b_c324),
                 next: 0
             }),
-            Err(RejectReason::RemoteStale)
+            Err(ValidationError::RemoteStale)
         );
 
         // Local is mainnet Petersburg, and isn't aware of more forks. Remote announces Petersburg +
         // 0xffffffff. Local needs software update, reject.
         filter.set_head(7_987_396);
         assert_eq!(
-            filter.is_compatible(ForkId {
+            filter.validate(ForkId {
                 hash: ForkHash(0x5cdd_c0e1),
                 next: 0
             }),
-            Err(RejectReason::LocalIncompatibleOrStale)
+            Err(ValidationError::LocalIncompatibleOrStale)
         );
 
         // Local is mainnet Byzantium, and is aware of Petersburg. Remote announces Petersburg +
         // 0xffffffff. Local needs software update, reject.
         filter.set_head(7_279_999);
         assert_eq!(
-            filter.is_compatible(ForkId {
+            filter.validate(ForkId {
                 hash: ForkHash(0x5cdd_c0e1),
                 next: 0
             }),
-            Err(RejectReason::LocalIncompatibleOrStale)
+            Err(ValidationError::LocalIncompatibleOrStale)
         );
 
         // Local is mainnet Petersburg, remote is Rinkeby Petersburg.
         filter.set_head(7_987_396);
         assert_eq!(
-            filter.is_compatible(ForkId {
+            filter.validate(ForkId {
                 hash: ForkHash(0xafec_6b27),
                 next: 0
             }),
-            Err(RejectReason::LocalIncompatibleOrStale)
+            Err(ValidationError::LocalIncompatibleOrStale)
         );
 
         // Local is mainnet Petersburg, far in the future. Remote announces Gopherium (non existing fork)
@@ -427,22 +430,22 @@ mod tests {
         // This case detects non-upgraded nodes with majority hash power (typical Ropsten mess).
         filter.set_head(88_888_888);
         assert_eq!(
-            filter.is_compatible(ForkId {
+            filter.validate(ForkId {
                 hash: ForkHash(0x668d_b0af),
                 next: 88_888_888
             }),
-            Err(RejectReason::LocalIncompatibleOrStale)
+            Err(ValidationError::LocalIncompatibleOrStale)
         );
 
         // Local is mainnet Byzantium. Remote is also in Byzantium, but announces Gopherium (non existing
         // fork) at block 7279999, before Petersburg. Local is incompatible.
         filter.set_head(7_279_999);
         assert_eq!(
-            filter.is_compatible(ForkId {
+            filter.validate(ForkId {
                 hash: ForkHash(0xa00b_c324),
                 next: 7_279_999
             }),
-            Err(RejectReason::LocalIncompatibleOrStale)
+            Err(ValidationError::LocalIncompatibleOrStale)
         );
     }
 
