@@ -1,3 +1,6 @@
+# 0.5.0 (2021-02-13)
+* Bump primitive-types to 0.9
+
 # 0.4.0 (2020-01-05)
 * Port to primitive-types 0.8, rlp 0.5
 * Rename RejectReason to ValidationError, ForkFilter::is_compatible to ForkFilter::validate
