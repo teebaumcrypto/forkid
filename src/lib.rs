@@ -36,7 +36,7 @@ impl rlp::Decodable for ForkHash {
             }
 
             let mut blob = [0; 4];
-            blob.copy_from_slice(&b[..]);
+            blob.copy_from_slice(b);
 
             Ok(Self(u32::from_be_bytes(blob)))
         })
