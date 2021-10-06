@@ -52,7 +52,7 @@ impl From<H256> for ForkHash {
 impl AddAssign<BlockNumber> for ForkHash {
     fn add_assign(&mut self, block: BlockNumber) {
         let blob = block.to_be_bytes();
-        self.0 = crc32::update(self.0, &crc32::IEEE_TABLE, &blob)
+        self.0 = crc32::update(self.0, &crc32::IEEE_TABLE, &blob);
     }
 }
 
