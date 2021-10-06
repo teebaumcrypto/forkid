@@ -12,7 +12,7 @@ edition = "2018"
 [dependencies]
 crc = "1"
 maplit = "1"
-primitive-types = { version = "0.9", default-features = false }
+primitive-types = { version = "0.10", default-features = false }
 rlp = "0.5"
 rlp-derive = "0.1"
 thiserror = "1"
