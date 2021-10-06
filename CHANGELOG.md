@@ -1,3 +1,6 @@
+# 0.6.0 (2021-10-06)
+* Bump primitive-types to 0.10
+
 # 0.5.0 (2021-02-13)
 * Bump primitive-types to 0.9
 
