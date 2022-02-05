@@ -7,7 +7,7 @@ documentation = "https://docs.rs/ethereum-forkid"
 description = "Ethereum fork identifier for chain compatibility checks"
 keywords = ["ethereum"]
 license = "Apache-2.0"
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 crc = "1"
