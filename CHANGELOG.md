@@ -1,3 +1,7 @@
+# 0.7.0 (2022-02-05)
+* Switch to Rust 2021 edition
+* Bump primitive-types to 0.11
+
 # 0.6.0 (2021-10-06)
 * Bump primitive-types to 0.10
 
