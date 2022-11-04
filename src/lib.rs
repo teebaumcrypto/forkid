@@ -7,8 +7,7 @@
 use crc::crc32;
 use maplit::btreemap;
 use primitive_types::H256;
-use rlp::{DecoderError, Rlp, RlpStream};
-use rlp_derive::{RlpDecodable, RlpEncodable};
+use open_fastrlp::*;
 use std::{
     collections::{BTreeMap, BTreeSet},
     ops::{Add, AddAssign},
@@ -19,40 +18,19 @@ use thiserror::Error;
 pub type BlockNumber = u64;
 
 /// `CRC32` hash of all previous forks starting from genesis block.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct ForkHash(pub u32);
-
-impl rlp::Encodable for ForkHash {
-    fn rlp_append(&self, s: &mut RlpStream) {
-        s.encoder().encode_value(&self.0.to_be_bytes());
-    }
-}
-
-impl rlp::Decodable for ForkHash {
-    fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
-        rlp.decoder().decode_value(|b| {
-            if b.len() != 4 {
-                return Err(DecoderError::RlpInvalidLength);
-            }
-
-            let mut blob = [0; 4];
-            blob.copy_from_slice(b);
-
-            Ok(Self(u32::from_be_bytes(blob)))
-        })
-    }
-}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, RlpEncodableWrapper, RlpDecodableWrapper, RlpMaxEncodedLen)]
+pub struct ForkHash(pub [u8; 4]);
 
 impl From<H256> for ForkHash {
     fn from(genesis: H256) -> Self {
-        Self(crc32::checksum_ieee(&genesis[..]))
+        Self(crc32::checksum_ieee(&genesis[..]).to_be_bytes())
     }
 }
 
 impl AddAssign<BlockNumber> for ForkHash {
     fn add_assign(&mut self, block: BlockNumber) {
         let blob = block.to_be_bytes();
-        self.0 = crc32::update(self.0, &crc32::IEEE_TABLE, &blob);
+        self.0 = crc32::update(u32::from_be_bytes(self.0), &crc32::IEEE_TABLE, &blob).to_be_bytes();
     }
 }
 
@@ -66,7 +44,7 @@ impl Add<BlockNumber> for ForkHash {
 
 /// A fork identifier as defined by EIP-2124.
 /// Serves as the chain compatibility identifier.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, RlpEncodable, RlpDecodable)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, RlpEncodable, RlpDecodable, RlpMaxEncodedLen)]
 pub struct ForkId {
     /// CRC32 checksum of the all fork blocks from genesis.
     pub hash: ForkHash,
@@ -266,13 +244,13 @@ mod tests {
     #[test]
     fn forkhash() {
         let mut fork_hash = ForkHash::from(GENESIS_HASH);
-        assert_eq!(fork_hash.0, 0xfc64_ec04);
+        assert_eq!(fork_hash.0, hex!("fc64ec04"));
 
         fork_hash += 1_150_000;
-        assert_eq!(fork_hash.0, 0x97c2_c34c);
+        assert_eq!(fork_hash.0, hex!("97c2c34c"));
 
         fork_hash += 1_920_000;
-        assert_eq!(fork_hash.0, 0x91d1_f948);
+        assert_eq!(fork_hash.0, hex!("91d1f948"));
     }
 
     #[test]
@@ -289,7 +267,7 @@ mod tests {
         filter.set_head(7_987_396);
         assert_eq!(
             filter.validate(ForkId {
-                hash: ForkHash(0x668d_b0af),
+                hash: ForkHash(hex!("668db0af")),
                 next: 0
             }),
             Ok(())
@@ -300,7 +278,7 @@ mod tests {
         filter.set_head(7_987_396);
         assert_eq!(
             filter.validate(ForkId {
-                hash: ForkHash(0x668d_b0af),
+                hash: ForkHash(hex!("668db0af")),
                 next: BlockNumber::max_value()
             }),
             Ok(())
@@ -312,7 +290,7 @@ mod tests {
         filter.set_head(7_279_999);
         assert_eq!(
             filter.validate(ForkId {
-                hash: ForkHash(0xa00b_c324),
+                hash: ForkHash(hex!("a00bc324")),
                 next: 0
             }),
             Ok(())
@@ -324,7 +302,7 @@ mod tests {
         filter.set_head(7_279_999);
         assert_eq!(
             filter.validate(ForkId {
-                hash: ForkHash(0xa00b_c324),
+                hash: ForkHash(hex!("a00bc324")),
                 next: 7_280_000
             }),
             Ok(())
@@ -336,7 +314,7 @@ mod tests {
         filter.set_head(7_279_999);
         assert_eq!(
             filter.validate(ForkId {
-                hash: ForkHash(0xa00b_c324),
+                hash: ForkHash(hex!("a00bc324")),
                 next: BlockNumber::max_value()
             }),
             Ok(())
@@ -346,7 +324,7 @@ mod tests {
         filter.set_head(7_987_396);
         assert_eq!(
             filter.validate(ForkId {
-                hash: ForkHash(0xa00b_c324),
+                hash: ForkHash(hex!("a00bc324")),
                 next: 7_280_000
             }),
             Ok(())
@@ -357,7 +335,7 @@ mod tests {
         filter.set_head(7_987_396);
         assert_eq!(
             filter.validate(ForkId {
-                hash: ForkHash(0x3edd_5b10),
+                hash: ForkHash(hex!("3edd5b10")),
                 next: 4_370_000
             }),
             Ok(())
@@ -367,7 +345,7 @@ mod tests {
         filter.set_head(7_279_999);
         assert_eq!(
             filter.validate(ForkId {
-                hash: ForkHash(0x668d_b0af),
+                hash: ForkHash(hex!("668db0af")),
                 next: 0
             }),
             Ok(())
@@ -378,7 +356,7 @@ mod tests {
         filter.set_head(4_369_999);
         assert_eq!(
             filter.validate(ForkId {
-                hash: ForkHash(0xa00b_c324),
+                hash: ForkHash(hex!("a00bc324")),
                 next: 0
             }),
             Ok(())
@@ -389,7 +367,7 @@ mod tests {
         filter.set_head(7_987_396);
         assert_eq!(
             filter.validate(ForkId {
-                hash: ForkHash(0xa00b_c324),
+                hash: ForkHash(hex!("a00bc324")),
                 next: 0
             }),
             Err(ValidationError::RemoteStale)
@@ -400,7 +378,7 @@ mod tests {
         filter.set_head(7_987_396);
         assert_eq!(
             filter.validate(ForkId {
-                hash: ForkHash(0x5cdd_c0e1),
+                hash: ForkHash(hex!("5cddc0e1")),
                 next: 0
             }),
             Err(ValidationError::LocalIncompatibleOrStale)
@@ -411,7 +389,7 @@ mod tests {
         filter.set_head(7_279_999);
         assert_eq!(
             filter.validate(ForkId {
-                hash: ForkHash(0x5cdd_c0e1),
+                hash: ForkHash(hex!("5cddc0e1")),
                 next: 0
             }),
             Err(ValidationError::LocalIncompatibleOrStale)
@@ -421,7 +399,7 @@ mod tests {
         filter.set_head(7_987_396);
         assert_eq!(
             filter.validate(ForkId {
-                hash: ForkHash(0xafec_6b27),
+                hash: ForkHash(hex!("afec6b27")),
                 next: 0
             }),
             Err(ValidationError::LocalIncompatibleOrStale)
@@ -434,7 +412,7 @@ mod tests {
         filter.set_head(88_888_888);
         assert_eq!(
             filter.validate(ForkId {
-                hash: ForkHash(0x668d_b0af),
+                hash: ForkHash(hex!("668db0af")),
                 next: 88_888_888
             }),
             Err(ValidationError::LocalIncompatibleOrStale)
@@ -445,7 +423,7 @@ mod tests {
         filter.set_head(7_279_999);
         assert_eq!(
             filter.validate(ForkId {
-                hash: ForkHash(0xa00b_c324),
+                hash: ForkHash(hex!("a00bc324")),
                 next: 7_279_999
             }),
             Err(ValidationError::LocalIncompatibleOrStale)
@@ -455,45 +433,45 @@ mod tests {
     #[test]
     fn forkid_serialization() {
         assert_eq!(
-            &*rlp::encode(&ForkId {
-                hash: ForkHash(0),
+            &*open_fastrlp::encode_fixed_size(&ForkId {
+                hash: ForkHash(hex!("00000000")),
                 next: 0
             }),
             hex!("c6840000000080")
         );
         assert_eq!(
-            &*rlp::encode(&ForkId {
-                hash: ForkHash(0xdead_beef),
+            &*open_fastrlp::encode_fixed_size(&ForkId {
+                hash: ForkHash(hex!("deadbeef")),
                 next: 0xBADD_CAFE
             }),
             hex!("ca84deadbeef84baddcafe")
         );
         assert_eq!(
-            &*rlp::encode(&ForkId {
-                hash: ForkHash(u32::max_value()),
+            &*open_fastrlp::encode_fixed_size(&ForkId {
+                hash: ForkHash(hex!("ffffffff")),
                 next: u64::max_value()
             }),
             hex!("ce84ffffffff88ffffffffffffffff")
         );
 
         assert_eq!(
-            rlp::decode::<ForkId>(&hex!("c6840000000080")).unwrap(),
+            ForkId::decode(&mut (&hex!("c6840000000080") as &[u8])).unwrap(),
             ForkId {
-                hash: ForkHash(0),
+                hash: ForkHash(hex!("00000000")),
                 next: 0
             }
         );
         assert_eq!(
-            rlp::decode::<ForkId>(&hex!("ca84deadbeef84baddcafe")).unwrap(),
+            ForkId::decode(&mut (&hex!("ca84deadbeef84baddcafe") as &[u8])).unwrap(),
             ForkId {
-                hash: ForkHash(0xdead_beef),
+                hash: ForkHash(hex!("deadbeef")),
                 next: 0xBADD_CAFE
             }
         );
         assert_eq!(
-            rlp::decode::<ForkId>(&hex!("ce84ffffffff88ffffffffffffffff")).unwrap(),
+            ForkId::decode(&mut (&hex!("ce84ffffffff88ffffffffffffffff") as &[u8])).unwrap(),
             ForkId {
-                hash: ForkHash(u32::max_value()),
+                hash: ForkHash(hex!("ffffffff")),
                 next: u64::max_value()
             }
         );
@@ -505,15 +483,15 @@ mod tests {
         let b2 = 1_920_000;
 
         let h0 = ForkId {
-            hash: ForkHash(0xfc64_ec04),
+            hash: ForkHash(hex!("fc64ec04")),
             next: b1,
         };
         let h1 = ForkId {
-            hash: ForkHash(0x97c2_c34c),
+            hash: ForkHash(hex!("97c2c34c")),
             next: b2,
         };
         let h2 = ForkId {
-            hash: ForkHash(0x91d1_f948),
+            hash: ForkHash(hex!("91d1f948")),
             next: 0,
         };
 
